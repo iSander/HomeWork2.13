@@ -48,7 +48,7 @@ class TaskListViewController: UITableViewController {
             })
         }
         let editItem = UIContextualAction(style: .normal, title: "Edit") {  (contextualAction, view, boolValue) in
-            // не успел реализовать(
+            self.showAlert(withTitle: "Edit Task", message: "Enter new name", task: self.tasks[indexPath.row])
         }
         let swipeActions = UISwipeActionsConfiguration(actions: [deleteItem, editItem])
 
@@ -99,23 +99,45 @@ extension TaskListViewController {
     }
     
     @objc private func addNewTask() {
-        showAlert(with: "New Task", and: "What do you want to do?")
+        showAlert(withTitle: "New Task", message: "What do you want to do?", task: nil)
     }
     
-    private func showAlert(with title: String, and message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
-            guard let taskName = alert.textFields?.first?.text, !taskName.isEmpty else { return }
-            DataManager.shared.save(taskName, with: { [weak self] task in
-                self?.tasks.append(task)
-                let cellIndex = IndexPath(row: (self?.tasks.count ?? 0) - 1, section: 0)
-                self?.tableView.insertRows(at: [cellIndex], with: .automatic)
-            })
+    private func showAlert(withTitle: String, message: String, task: Task?) {
+        let alert = UIAlertController(title: withTitle, message: message, preferredStyle: .alert)
+        
+        if task == nil {
+            let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
+                guard let taskName = alert.textFields?.first?.text, !taskName.isEmpty else { return }
+                DataManager.shared.save(taskName, with: { [weak self] task in
+                    self?.tasks.append(task)
+                    let cellIndex = IndexPath(row: (self?.tasks.count ?? 0) - 1, section: 0)
+                    self?.tableView.insertRows(at: [cellIndex], with: .automatic)
+                })
+            }
+            alert.addAction(saveAction)
         }
+        else {
+            let editAction = UIAlertAction(title: "Edit", style: .default) { _ in
+                guard let taskName = alert.textFields?.first?.text, !taskName.isEmpty else { return }
+                
+                DataManager.shared.edit(task!, with: taskName, with: { [weak self] editedTask in
+                    if let taskIndex = self?.tasks.firstIndex(of: task!) {
+                        self?.tasks[taskIndex] = editedTask
+                        let cellIndex = IndexPath(row: taskIndex, section: 0)
+                        self?.tableView.reloadRows(at: [cellIndex], with: .automatic)
+                    }
+                })
+            }
+            alert.addAction(editAction)
+        }
+        
         let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
-        alert.addTextField()
-        alert.addAction(saveAction)
         alert.addAction(cancelAction)
+        
+        alert.addTextField{ (textField) in
+            textField.text = task?.name
+        }
+        
         present(alert, animated: true)
     }
 }

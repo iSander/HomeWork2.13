@@ -59,6 +59,16 @@ class DataManager {
         }
     }
     
+    func edit(_ task: Task, with name: String, with completion: @escaping (Task) -> Void) {
+        do {
+            task.setValue(name, forKey: "name")
+            try persistentContainer.viewContext.save()
+            completion(task)
+        } catch let error {
+            print(error)
+        }
+    }
+    
     func delete(_ task: Task, with completion: @escaping (Bool) -> Void) {
         do {
             persistentContainer.viewContext.delete(task)
