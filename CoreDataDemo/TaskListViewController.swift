@@ -11,16 +11,12 @@ import UIKit
 class TaskListViewController: UITableViewController {
     
     private let cellID = "cell"
-    private var tasks: [Task] = []
+    private var tasks = DataManager.shared.fetchData()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         setupView()
-        
-        DataManager.shared.fetchData(with: { [weak self] fetchTasks in
-            self?.tasks = fetchTasks
-        })
     }
 
     // MARK: - Table view data source
@@ -39,13 +35,10 @@ class TaskListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let deleteItem = UIContextualAction(style: .destructive, title: "Delete") { (contextualAction, view, boolValue) in
-            DataManager.shared.delete(self.tasks[indexPath.row], with: { [weak self] result in
-                if result {
-                    self?.tasks.remove(at: indexPath.row)
-                    let cellIndex = IndexPath(row: indexPath.row, section: 0)
-                    self?.tableView.deleteRows(at: [cellIndex], with: .automatic)
-                }
-            })
+            let task = self.tasks[indexPath.row]
+            self.tasks.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            DataManager.shared.delete(task)
         }
         let editItem = UIContextualAction(style: .normal, title: "Edit") {  (contextualAction, view, boolValue) in
             self.showAlert(withTitle: "Edit Task", message: "Enter new name", task: self.tasks[indexPath.row])
@@ -99,19 +92,20 @@ extension TaskListViewController {
     }
     
     @objc private func addNewTask() {
-        showAlert(withTitle: "New Task", message: "What do you want to do?", task: nil)
+        showAlert(withTitle: "New Task", message: "What do you want to do?")
     }
     
-    private func showAlert(withTitle: String, message: String, task: Task?) {
+    private func showAlert(withTitle: String, message: String, task: Task? = nil) {
         let alert = UIAlertController(title: withTitle, message: message, preferredStyle: .alert)
         
         if task == nil {
             let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
                 guard let taskName = alert.textFields?.first?.text, !taskName.isEmpty else { return }
-                DataManager.shared.save(taskName, with: { [weak self] task in
-                    self?.tasks.append(task)
-                    let cellIndex = IndexPath(row: (self?.tasks.count ?? 0) - 1, section: 0)
-                    self?.tableView.insertRows(at: [cellIndex], with: .automatic)
+                DataManager.shared.save(taskName, with: { task in
+                    self.tasks.append(task)
+                    self.tableView.insertRows(
+                        at: [IndexPath(row: self.tasks.count - 1, section: 0)],
+                        with: .automatic)
                 })
             }
             alert.addAction(saveAction)

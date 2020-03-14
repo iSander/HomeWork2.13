@@ -14,8 +14,9 @@ class DataManager {
     
     static let shared = DataManager()
     
-    // Создание объекта Managed Object Context
-    //private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private var viewContext: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
     
     // MARK: - Core Data stack
 
@@ -33,10 +34,9 @@ class DataManager {
     // MARK: - Core Data Saving support
 
     func saveContext() {
-        let context = persistentContainer.viewContext
-        if context.hasChanges {
+        if viewContext.hasChanges {
             do {
-                try context.save()
+                try viewContext.save()
             } catch {
                 let nserror = error as NSError
                 fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
@@ -47,47 +47,38 @@ class DataManager {
     // MARK: - Work with storage
     
     func save(_ taskName: String, with completion: @escaping (Task) -> Void) {
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: persistentContainer.viewContext) else { return }
-        let task = NSManagedObject(entity: entityDescription, insertInto: persistentContainer.viewContext) as! Task
-        task.name = taskName
         
-        do {
-            try persistentContainer.viewContext.save()
-            completion(task)
-        } catch let error {
-            print(error)
-        }
+        guard let entityDescription = NSEntityDescription.entity(
+            forEntityName: "Task",
+            in: viewContext) else { return }
+        
+        let task = NSManagedObject(entity: entityDescription,
+                                   insertInto: viewContext) as! Task
+        task.name = taskName
+        completion(task)
+        
+        saveContext()
     }
     
     func edit(_ task: Task, with name: String, with completion: @escaping (Task) -> Void) {
-        do {
-            task.setValue(name, forKey: "name")
-            try persistentContainer.viewContext.save()
-            completion(task)
-        } catch let error {
-            print(error)
-        }
+        task.name = name
+        completion(task)
+        saveContext()
     }
     
-    func delete(_ task: Task, with completion: @escaping (Bool) -> Void) {
-        do {
-            persistentContainer.viewContext.delete(task)
-            try persistentContainer.viewContext.save()
-            completion(true)
-        } catch let error {
-            completion(false)
-            print(error)
-        }
+    func delete(_ task: Task) {
+        viewContext.delete(task)
+        saveContext()
     }
     
-    func fetchData(with completion: @escaping ([Task]) -> Void) {
+    func fetchData() -> [Task] {
         let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
-
+        
         do {
-            let tasks = try persistentContainer.viewContext.fetch(fetchRequest)
-            completion(tasks)
+            return try viewContext.fetch(fetchRequest)
         } catch let error {
-            print(error)
+            print("Failed to fetch data", error)
+            return []
         }
     }
 }
